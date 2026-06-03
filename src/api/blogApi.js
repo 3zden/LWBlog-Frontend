@@ -17,6 +17,11 @@ export async function getBlogs() {
   return parseResponse(response);
 }
 
+export async function getBlog(id) {
+  const response = await fetch(`${API_BASE}/${id}`);
+  return parseResponse(response);
+}
+
 export async function createBlog(payload) {
   const response = await fetch(API_BASE, {
     method: "POST",

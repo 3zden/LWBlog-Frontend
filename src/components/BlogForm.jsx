@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useAppSession from "../hooks/useAppSession";
 
 const initialForm = {
   title: "",
@@ -6,7 +7,8 @@ const initialForm = {
   author: "",
 };
 
-export default function BlogForm({ selectedPost, onCreate, onUpdate, onCancel, busy }) {
+export default function BlogForm({ mode = "create", selectedPost, onCreate, onUpdate, onCancel, busy }) {
+  const { currentUser } = useAppSession();
   const [formData, setFormData] = useState(initialForm);
 
   useEffect(() => {
@@ -19,10 +21,16 @@ export default function BlogForm({ selectedPost, onCreate, onUpdate, onCancel, b
       return;
     }
 
-    setFormData(initialForm);
-  }, [selectedPost]);
+    setFormData({
+      title: "",
+      content: "",
+      author: currentUser?.fullName || "",
+    });
+  }, [currentUser, selectedPost]);
 
   const isEditing = Boolean(selectedPost);
+  const isCreateMode = mode === "create";
+  const authorLocked = !isEditing && Boolean(currentUser);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -59,14 +67,29 @@ export default function BlogForm({ selectedPost, onCreate, onUpdate, onCancel, b
       return;
     }
 
-    onCreate({ title, content, author });
+    if (onCreate) {
+      onCreate({ title, content, author });
+    }
+  }
+
+  if (!isEditing && !isCreateMode) {
+    return (
+      <section className="panel panel-form">
+        <div className="panel-head">
+          <p className="eyebrow">Editor</p>
+          <h2>Select a post to edit</h2>
+        </div>
+        <p className="section-note">Choose Edit on a post from the feed to load it into this panel.</p>
+      </section>
+    );
   }
 
   return (
     <section className="panel panel-form">
       <div className="panel-head">
-        <p className="kicker">Editor</p>
-        <h2>{isEditing ? `Editing #${selectedPost.id}` : "Create a post"}</h2>
+        <p className="eyebrow">Editor</p>
+        <h2>{isEditing ? `Editing #${selectedPost.id}` : "Draft a post"}</h2>
+        <p className="section-note">Keep the tone concise. Title and content are required; author is locked once editing starts.</p>
       </div>
 
       <form className="blog-form" onSubmit={handleSubmit}>
@@ -77,9 +100,10 @@ export default function BlogForm({ selectedPost, onCreate, onUpdate, onCancel, b
             value={formData.title}
             onChange={handleChange}
             placeholder="A strong headline"
-            maxLength={25}
+            maxLength={60}
             required
           />
+          <small className="field-hint">Aim for a sharp, readable title.</small>
         </label>
 
         <label>
@@ -88,10 +112,13 @@ export default function BlogForm({ selectedPost, onCreate, onUpdate, onCancel, b
             name="author"
             value={formData.author}
             onChange={handleChange}
-            placeholder="Your name"
-            disabled={isEditing}
-            required={!isEditing}
+            placeholder={authorLocked ? "Pulled from your profile" : "Your name"}
+            disabled={isEditing || authorLocked}
+            required={!isEditing && !authorLocked}
           />
+          <small className="field-hint">
+            {authorLocked ? "Signed-in profile will be used for this post." : "Shown beneath the post title."}
+          </small>
         </label>
 
         <label>
@@ -105,6 +132,7 @@ export default function BlogForm({ selectedPost, onCreate, onUpdate, onCancel, b
             placeholder="Write your post"
             required
           />
+          <small className="field-hint">Longer drafts are welcome, but keep paragraphs clean and direct.</small>
         </label>
 
         <div className="actions">
